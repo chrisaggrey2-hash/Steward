@@ -483,8 +483,8 @@ canvas{display:block}
     'sb_publishable_AxL2fQ-KTjheNY-4K7Dkjw_bUKAuxwc'
   );
 
-  window.supabase = supabase; // makes it reachable from your existing non-module script below
-
+  window.supabase = supabase;
+  window.dispatchEvent(new Event('supabase-ready'));
   console.log('Supabase client ready:', supabase);
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -947,11 +947,19 @@ function generateRecurringEntries(){
   if(generatedAny){saveState();toast('New recurring entries added for this month!');}
 }
 
-checkAuth().then(function(user){
-  if (user) {
-    populateCatSelects();generateRecurringEntries();renderDashboard();
-  }
-});
+function bootApp(){
+  checkAuth().then(function(user){
+    if (user) {
+      populateCatSelects();generateRecurringEntries();renderDashboard();
+    }
+  });
+}
+
+if (window.supabase) {
+  bootApp();
+} else {
+  window.addEventListener('supabase-ready', bootApp);
+}
 </script>
 </body>
 </html>
