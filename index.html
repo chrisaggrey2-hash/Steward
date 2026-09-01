@@ -452,7 +452,41 @@ canvas{display:block}
   </div>
 </div>
 
+<!-- AUTH MODAL -->
+<div class="modal-bg" id="modal-auth">
+  <div class="modal" style="max-width:380px">
+    <h2 id="auth-modal-title">Welcome to Steward</h2>
+    <div class="form-group" style="margin-bottom:10px">
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="you@example.com"/>
+    </div>
+    <div class="form-group" style="margin-bottom:1rem">
+      <label>Password</label>
+      <input id="auth-password" type="password" placeholder="••••••••"/>
+    </div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" id="auth-submit-btn" onclick="handleAuthSubmit()">Log in</button>
+    <p style="text-align:center;font-size:12px;color:var(--muted);margin-top:1rem">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <a href="#" onclick="toggleAuthMode(event)" style="color:var(--green)">
+        <span id="auth-toggle-link">Sign up</span>
+      </a>
+    </p>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+<script type="module">
+  import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+  const supabase = createClient(
+    'https://statvymjscrzqefounsq.supabase.co',
+    'sb_publishable_AxL2fQ-KTjheNY-4K7Dkjw_bUKAuxwc'
+  );
+
+  window.supabase = supabase; // makes it reachable from your existing non-module script below
+
+  console.log('Supabase client ready:', supabase);
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 var state={
@@ -474,6 +508,43 @@ var state={
 function loadState(){try{var s=localStorage.getItem('steward_v2');if(s){var p=JSON.parse(s);state=Object.assign({},state,p);}}catch(e){}}
 function saveState(){localStorage.setItem('steward_v2',JSON.stringify(state));}
 loadState();
+
+var authMode = 'signin'; // 'signin' or 'signup'
+
+function toggleAuthMode(e) {
+  e.preventDefault();
+  authMode = authMode === 'signin' ? 'signup' : 'signin';
+  document.getElementById('auth-modal-title').textContent = authMode === 'signin' ? 'Welcome back' : 'Create your account';
+  document.getElementById('auth-submit-btn').textContent = authMode === 'signin' ? 'Log in' : 'Sign up';
+  document.getElementById('auth-toggle-text').textContent = authMode === 'signin' ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('auth-toggle-link').textContent = authMode === 'signin' ? 'Sign up' : 'Log in';
+}
+
+async function handleAuthSubmit() {
+  var email = document.getElementById('auth-email').value.trim();
+  var password = document.getElementById('auth-password').value;
+  if (!email || !password) { toast('Enter email and password.'); return; }
+
+  if (authMode === 'signup') {
+    var { data, error } = await window.supabase.auth.signUp({ email: email, password: password });
+    if (error) { toast(error.message); return; }
+    toast('Account created! Check your email to confirm, then log in.');
+    toggleAuthMode({ preventDefault: function(){} });
+  } else {
+    var { data, error } = await window.supabase.auth.signInWithPassword({ email: email, password: password });
+    if (error) { toast(error.message); return; }
+    closeModal('modal-auth');
+    location.reload();
+  }
+}
+
+async function checkAuth() {
+  var { data: { user } } = await window.supabase.auth.getUser();
+  if (!user) {
+    document.getElementById('modal-auth').classList.add('open');
+  }
+  return user;
+}
 
 var COLORS=['#1D9E75','#185FA5','#BA7517','#A32D2D','#534AB7','#0F6E56','#7B4F12','#993556','#3B6D11','#5F5E5A'];
 function fmt(n){return new Intl.NumberFormat('en-KE',{style:'currency',currency:state.settings.currency,maximumFractionDigits:0}).format(n);}
@@ -876,7 +947,11 @@ function generateRecurringEntries(){
   if(generatedAny){saveState();toast('New recurring entries added for this month!');}
 }
 
-populateCatSelects();generateRecurringEntries();renderDashboard();
+checkAuth().then(function(user){
+  if (user) {
+    populateCatSelects();generateRecurringEntries();renderDashboard();
+  }
+});
 </script>
 </body>
 </html>
